@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Console Sync - Scroll Optimized</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        body {
+            font-family: "Benton Sans", sans-serif;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            background-color: #f0f2f5;
+            overflow: hidden; /* Blocca lo scroll dell'intera pagina */
+            box-sizing: border-box;
+        }
+
+        /* --- COLONNA INPUT (Ora Scrollabile correttamente) --- */
+        #colonna-input {
+            width: 40%;
+            height: 100vh; /* Forza l'altezza all'intera finestra */
+            padding: 15px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-auto-rows: minmax(50px, auto); /* Tasti leggermente più alti */
+            gap: 8px;
+            background-color: #ffffff;
+            border-right: 2px solid #2c3e50;
+            
+            /* Attiva lo scroll verticale */
+            overflow-y: scroll; 
+            scrollbar-width: thin; /* Per Firefox */
+            box-sizing: border-box;
+        }
+
+        /* Personalizzazione barra di scorrimento per Chrome/Safari */
+        #colonna-input::-webkit-scrollbar {
+            width: 8px;
+        }
+        #colonna-input::-webkit-scrollbar-thumb {
+            background: #bdc3c7;
+            border-radius: 4px;
+        }
+
+        .btn-sigla {
+            font-family: inherit;
+            padding: 6px;
+            font-weight: 600;
+            border: 2px solid #bdc3c7;
+            background: #fff;
+            cursor: pointer;
+            border-radius: 6px;
+            text-transform: uppercase;
+            transition: all 0.2s;
+            font-size: clamp(0.7rem, 1vw, 0.9rem);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            word-break: break-word;
+            line-height: 1.1;
+        }
+
+        .btn-sigla:hover { border-color: #95a5a6; background-color: #f7f9f9; }
+        .btn-sigla.attivo-nella-colonna { background-color: #f39c12; color: white; border-color: #d35400; }
+
+        /* --- COLONNA VIEW --- */
+        #colonna-view {
+            width: 30%;
+            padding: 15px;
+            background-color: #ecf0f1;
+            display: flex;
+            flex-direction: column;
+            border-right: 2px solid #2c3e50;
+            box-sizing: border-box;
+            height: 100%;
+        }
+
+        #display-log {
+            flex-grow: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding-right: 5px;
+        }
+
+        .item-log {
+            background: white;
+            padding: 10px;
+            border-radius: 6px;
+            font-weight: 700;
+            color: #e74c3c;
+            border-left: 5px solid #e74c3c;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        /* --- COLONNA CONTROLLI --- */
+        #colonna-controlli {
+            width: 30%;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background-color: #2c3e50;
+            color: white;
+            overflow-y: auto;
+        }
+
+        .network-panel {
+            background: rgba(0,0,0,0.2);
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+
+        .id-display { 
+            background: #fff; color: #333; padding: 8px; 
+            font-family: monospace; text-align: center; border-radius: 4px; 
+            cursor: copy; margin-top: 5px;
+        }
+
+        .btn-select {
+            padding: 12px; border: none; background: #34495e; color: #bdc3c7; 
+            cursor: pointer; font-weight: 700; border-radius: 4px;
+        }
+        .btn-select.active { background-color: #e74c3c; color: white; }
+
+        .btn-save { padding: 15px; background-color: #27ae60; color: white; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; margin-top: auto; }
+        .btn-reset { padding: 10px; background-color: #c0392b; color: white; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; }
+        
+        .status-dot { height: 10px; width: 10px; background-color: #bbb; border-radius: 50%; display: inline-block; margin-right: 5px;}
+        .status-online { background-color: #2ecc71; box-shadow: 0 0 5px #2ecc71; }
+    </style>
+</head>
+<body>
+
+    <div id="colonna-input"></div>
+
+    <div id="colonna-view">
+        <h3 id="titolo-colonna" style="text-align: center; color: #2c3e50;">CAMBIO 1</h3>
+        <div id="display-log"></div>
+    </div>
+
+    <div id="colonna-controlli">
+        <div class="network-panel">
+            <h4 style="margin:0; color: #f1c40f; text-align: center;">📡 SINCRONIZZAZIONE</h4>
+            <div id="my-id" class="id-display" onclick="copiaID()">In attesa...</div>
+            <input type="text" id="remote-id" style="width:100%; padding:8px; margin-top:10px; box-sizing:border-box; border-radius:4px; border:none;" placeholder="Incolla ID remoto">
+            <button onclick="connettiAPeer()" style="width:100%; margin-top:5px; padding:8px; background:#3498db; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">🔗 CONNETTI</button>
+            <div style="margin-top: 10px; font-size: 0.75rem; text-align: center;">
+                <span id="status-dot" class="status-dot"></span>
+                <span id="peer-status-text">Disconnesso</span>
+            </div>
+        </div>
+
+        <button class="btn-select active" onclick="switchColonna(0)">CAMBIO 1</button>
+        <button class="btn-select" onclick="switchColonna(1)">CAMBIO 2</button>
+        <button class="btn-select" onclick="switchColonna(2)">CAMBIO 3</button>
+        <button class="btn-select" onclick="switchColonna(3)">CAMBIO 4</button>
+        <button class="btn-select" onclick="switchColonna(4)">CAMBIO 5</button>
+        
+        <button class="btn-save" onclick="salvaTutto()">💾 SALVA REPORT</button>
+        <button class="btn-reset" onclick="resetDati()">🗑️ RESET</button>
+    </div>
+
+    <script>
+        const nomi = ["BAIRO","BARBANIA", "BUSANO", "CANISCHIO", "CUCEGLIO", "CUORGNE'", "FAVRIA", "FORNO", "FRASSINETTO", "LEVONE", "OZEGNA", "PERTUSIO", "PRASCORSANO", "PRATIGLIONE","RIVARA", "RIVAROLO","OGLIANICO" ,"SPARONE", "TORRRE", "VALPERGA", "NOME EXTRA 1", "NOME EXTRA 2", "NOME EXTRA 3", "NOME EXTRA 4"];
+        
+        let savedStore = localStorage.getItem('shared_log_data');
+        let appState = savedStore ? JSON.parse(savedStore) : { data: [[], [], [], [], []], lastUpdate: Date.now() };
+        let colonneData = appState.data;
+        let lastUpdate = appState.lastUpdate;
+        let colonnaAttiva = 0;
+
+        const inputPanel = document.getElementById('colonna-input');
+        nomi.forEach(n => {
+            const b = document.createElement('button');
+            b.innerText = n;
+            b.id = `btn-${n}`;
+            b.className = 'btn-sigla';
+            b.onclick = () => toggleTasto(n); 
+            inputPanel.appendChild(b);
+        });
+
+        function toggleTasto(sigla) {
+            let colData = colonneData[colonnaAttiva];
+            const index = colData.indexOf(sigla);
+            if (index > -1) colData.splice(index, 1);
+            else colData.push(sigla);
+            lastUpdate = Date.now();
+            syncAndRefresh();
+            inviaDati();
+        }
+
+        function switchColonna(idx) {
+            colonnaAttiva = idx;
+            document.getElementById('titolo-colonna').innerText = `CAMBIO ${idx + 1}`;
+            document.querySelectorAll('.btn-select').forEach((b, i) => b.classList.toggle('active', i === idx));
+            syncAndRefresh();
+        }
+
+        function syncAndRefresh() {
+            nomi.forEach(n => {
+                const b = document.getElementById(`btn-${n}`);
+                if(b) b.classList.toggle('attivo-nella-colonna', (colonneData[colonnaAttiva] || []).includes(n));
+            });
+            const displayLog = document.getElementById('display-log');
+            displayLog.innerHTML = '';
+            (colonneData[colonnaAttiva] || []).forEach(nome => {
+                const div = document.createElement('div');
+                div.className = 'item-log';
+                div.innerText = nome;
+                displayLog.appendChild(div);
+            });
+            setTimeout(() => { displayLog.scrollTop = displayLog.scrollHeight; }, 50);
+            localStorage.setItem('shared_log_data', JSON.stringify({ data: colonneData, lastUpdate: lastUpdate }));
+        }
+
+        function salvaTutto() {
+            let report = "REPORT SEQUENZE\n" + "=".repeat(30) + "\n";
+            colonneData.forEach((arr, i) => { report += `\nCAMBIO ${i+1}: ` + (arr.join(", ") || "Vuota"); });
+            const blob = new Blob([report], { type: 'text/plain' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'sequenza.txt';
+            a.click();
+        }
+
+        function resetDati() {
+            if (confirm("Vuoi resettare tutto?")) {
+                colonneData = [[], [], [], [], []];
+                lastUpdate = Date.now();
+                syncAndRefresh();
+                inviaDati();
+            }
+        }
+
+        // --- PEERJS LOGIC ---
+        let peer = new Peer();
+        let connessioni = [];
+
+        peer.on('open', id => document.getElementById('my-id').innerText = id);
+        peer.on('connection', conn => setupConnessione(conn));
+
+        function connettiAPeer() {
+            const rId = document.getElementById('remote-id').value.trim();
+            if (rId) setupConnessione(peer.connect(rId));
+        }
+
+        function setupConnessione(conn) {
+            conn.on('open', () => {
+                if(!connessioni.find(c => c.peer === conn.peer)) connessioni.push(conn);
+                updateStatus(true, connessioni.length + " Connessi");
+                conn.send({ data: colonneData, ts: lastUpdate });
+            });
+            conn.on('data', payload => {
+                if (payload && payload.ts > lastUpdate) {
+                    colonneData = payload.data;
+                    lastUpdate = payload.ts;
+                    syncAndRefresh();
+                }
+            });
+            conn.on('close', () => {
+                connessioni = connessioni.filter(c => c.peer !== conn.peer);
+                updateStatus(connessioni.length > 0, connessioni.length + " Connessi");
+            });
+        }
+
+        function inviaDati() {
+            connessioni.forEach(conn => { if(conn.open) conn.send({ data: colonneData, ts: lastUpdate }); });
+        }
+
+        function updateStatus(on, txt) {
+            document.getElementById('status-dot').classList.toggle('status-online', on);
+            document.getElementById('peer-status-text').innerText = txt;
+        }
+
+        function copiaID() {
+            const id = document.getElementById('my-id').innerText;
+            navigator.clipboard.writeText(id);
+            alert("ID Copiato: " + id);
+        }
+
+        syncAndRefresh();
+    </script>
+</body>
+</html>
