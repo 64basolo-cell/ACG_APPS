@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Console Sync Pro - Fixed 2x10</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #e74c3c;
+            --success: #27ae60;
+            --warning: #f39c12;
+            --bg-light: #f0f2f5;
+        }
+
+        body {
+            font-family: "Segoe UI", Tahoma, sans-serif;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            background-color: var(--bg-light);
+            overflow: hidden;
+        }
+
+        /* --- COLONNA INPUT (FISSA 2x10) --- */
+        #colonna-input {
+            width: 40%;
+            height: 100vh;
+            padding: 8px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: repeat(10, 1fr); /* 10 righe fisse */
+            gap: 6px;
+            background-color: #ffffff;
+            border-right: 3px solid var(--primary);
+            box-sizing: border-box;
+        }
+
+        .btn-sigla {
+            font-family: inherit;
+            font-weight: 800;
+            border: 2px solid #bdc3c7;
+            background: #fff;
+            cursor: pointer;
+            border-radius: 6px;
+            text-transform: uppercase;
+            transition: all 0.1s;
+            
+            /* Squeezable text logic */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 4px;
+            line-height: 1.1;
+            word-wrap: break-word;
+            overflow: hidden;
+            font-size: clamp(0.6rem, 1.2vw, 0.85rem); /* Si rimpicciolisce se necessario */
+        }
+
+        .btn-sigla:active { transform: scale(0.96); }
+        .btn-sigla.attivo-nella-colonna { 
+            background-color: var(--warning); 
+            color: white; 
+            border-color: #d35400;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        /* --- COLONNA VIEW --- */
+        #colonna-view {
+            width: 30%;
+            padding: 15px;
+            background-color: #ecf0f1;
+            display: flex;
+            flex-direction: column;
+            border-right: 3px solid var(--primary);
+            box-sizing: border-box;
+        }
+
+        #display-log {
+            flex-grow: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .item-log {
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            font-weight: 700;
+            border-left: 5px solid var(--accent);
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+        }
+
+        /* --- COLONNA CONTROLLI --- */
+        #colonna-controlli {
+            width: 30%;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background-color: var(--primary);
+            color: white;
+            overflow-y: auto;
+        }
+
+        .panel {
+            background: rgba(255,255,255,0.1);
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .id-display { 
+            background: #fff; color: #333; padding: 8px; 
+            font-family: monospace; text-align: center; border-radius: 4px; 
+            cursor: pointer; margin-top: 5px; font-weight: bold; font-size: 0.8rem;
+        }
+
+        .btn-select {
+            padding: 10px; border: none; background: #34495e; color: #bdc3c7; 
+            cursor: pointer; font-weight: 700; border-radius: 4px; transition: 0.2s;
+        }
+        .btn-select.active { background-color: var(--accent); color: white; }
+
+        #editor-nomi {
+            display: none;
+            flex-direction: column;
+            gap: 5px;
+            background: rgba(0,0,0,0.2);
+            padding: 10px;
+            border-radius: 6px;
+        }
+        .input-edit-nome {
+            width: 100%; padding: 6px; border-radius: 3px; border: none; font-size: 0.75rem; box-sizing: border-box;
+        }
+
+        .status-dot { height: 10px; width: 10px; background-color: #7f8c8d; border-radius: 50%; display: inline-block; margin-right: 5px;}
+        .status-online { background-color: #2ecc71; box-shadow: 0 0 5px #2ecc71; }
+    </style>
+</head>
+<body>
+
+    <div id="colonna-input"></div>
+
+    <div id="colonna-view">
+        <h3 id="titolo-colonna" style="text-align: center; margin-top: 0; color: var(--primary);">CAMBIO 1</h3>
+        <div id="display-log"></div>
+    </div>
+
+    <div id="colonna-controlli">
+        <div class="panel">
+            <div id="my-id" class="id-display" title="Clicca per copiare">Inizializzazione...</div>
+            <input type="text" id="remote-id" style="width:100%; padding:8px; margin-top:8px; box-sizing:border-box; border-radius:4px; border:none;" placeholder="Incolla ID partner">
+            <button onclick="connettiAPeer()" style="width:100%; margin-top:6px; padding:8px; background:#3498db; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">🔗 CONNETTI</button>
+            <div style="text-align:center; margin-top:8px; font-size:0.75rem;">
+                <span id="status-dot" class="status-dot"></span> <span id="peer-status-text">Disconnesso</span>
+            </div>
+        </div>
+
+        <button class="btn-select active" onclick="switchColonna(0)">CAMBIO 1</button>
+        <button class="btn-select" onclick="switchColonna(1)">CAMBIO 2</button>
+        <button class="btn-select" onclick="switchColonna(2)">CAMBIO 3</button>
+        <button class="btn-select" onclick="switchColonna(3)">CAMBIO 4</button>
+        <button class="btn-select" onclick="switchColonna(4)">CAMBIO 5</button>
+
+        <hr style="width:100%; opacity:0.1; margin: 10px 0;">
+
+        <button onclick="toggleEditor()" style="background:#f1c40f; border:none; padding:10px; font-weight:bold; cursor:pointer; border-radius:4px;">✏️ MODIFICA NOMI</button>
+        <div id="editor-nomi">
+            <div id="lista-inputs-nomi" style="max-height: 250px; overflow-y: auto; padding-right: 5px;"></div>
+            <button onclick="salvaNuoviNomi()" style="background:var(--success); color:white; border:none; padding:10px; margin-top:8px; cursor:pointer; font-weight:bold; border-radius:4px;">APPLICA MODIFICHE</button>
+        </div>
+
+        <button onclick="salvaTutto()" style="margin-top:auto; padding:12px; background:var(--success); color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">💾 SCARICA REPORT</button>
+        <button onclick="resetDati()" style="padding:10px; background:#c0392b; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">🗑️ RESET DATI</button>
+    </div>
+
+    <script>
+        const nomiDefault = ["BAIRO","BARBANIA", "BUSANO", "CANISCHIO", "CUCEGLIO", "CUORGNE'", "FAVRIA", "FORNO", "FRASSINETTO", "LEVONE", "OZEGNA", "PERTUSIO", "PRASCORSANO", "PRATIGLIONE","RIVARA", "RIVAROLO","OGLIANICO" ,"SPARONE", "TORRRE", "VALPERGA"];
+        let nomiCorrenti = JSON.parse(localStorage.getItem('custom_nomi')) || nomiDefault;
+
+        let savedStore = localStorage.getItem('shared_log_data');
+        let appState = savedStore ? JSON.parse(savedStore) : { data: [[], [], [], [], []], lastUpdate: Date.now() };
+        let colonneData = appState.data;
+        let lastUpdate = appState.lastUpdate;
+        let colonnaAttiva = 0;
+
+        function renderTasti() {
+            const container = document.getElementById('colonna-input');
+            container.innerHTML = '';
+            nomiCorrenti.slice(0, 20).forEach((n, i) => {
+                const b = document.createElement('button');
+                b.innerText = n;
+                b.id = `btn-tasto-${i}`;
+                b.className = 'btn-sigla';
+                b.onclick = () => toggleTasto(n, i);
+                container.appendChild(b);
+            });
+            syncAndRefresh();
+        }
+
+        function toggleTasto(nome, index) {
+            let colData = colonneData[colonnaAttiva];
+            const pos = colData.indexOf(nome);
+            if (pos > -1) colData.splice(pos, 1);
+            else colData.push(nome);
+            
+            lastUpdate = Date.now();
+            syncAndRefresh();
+            inviaDati();
+        }
+
+        function syncAndRefresh() {
+            nomiCorrenti.forEach((n, i) => {
+                const b = document.getElementById(`btn-tasto-${i}`);
+                if(b) b.classList.toggle('attivo-nella-colonna', (colonneData[colonnaAttiva] || []).includes(n));
+            });
+
+            const log = document.getElementById('display-log');
+            log.innerHTML = '';
+            (colonneData[colonnaAttiva] || []).forEach((n, i) => {
+                const div = document.createElement('div');
+                div.className = 'item-log';
+                div.innerHTML = `<span>${n}</span><small style="color:#bdc3c7">#${i+1}</small>`;
+                log.appendChild(div);
+            });
+            log.scrollTop = log.scrollHeight;
+            localStorage.setItem('shared_log_data', JSON.stringify({ data: colonneData, lastUpdate: lastUpdate }));
+        }
+
+        function switchColonna(idx) {
+            colonnaAttiva = idx;
+            document.getElementById('titolo-colonna').innerText = `CAMBIO ${idx + 1}`;
+            document.querySelectorAll('.btn-select').forEach((b, i) => b.classList.toggle('active', i === idx));
+            syncAndRefresh();
+        }
+
+        function toggleEditor() {
+            const ed = document.getElementById('editor-nomi');
+            const list = document.getElementById('lista-inputs-nomi');
+            ed.style.display = (ed.style.display === 'flex') ? 'none' : 'flex';
+            if(ed.style.display === 'flex') {
+                list.innerHTML = '';
+                nomiCorrenti.forEach((n, i) => {
+                    list.innerHTML += `<div style="display:flex; align-items:center; gap:5px; margin-bottom:2px;">
+                        <small style="width:20px">${i+1}</small>
+                        <input type="text" class="input-edit-nome" value="${n}" data-index="${i}">
+                    </div>`;
+                });
+            }
+        }
+
+        function salvaNuoviNomi() {
+            const inputs = document.querySelectorAll('.input-edit-nome');
+            const nuoviNomi = [];
+            inputs.forEach(input => nuoviNomi.push(input.value.toUpperCase() || "---"));
+            
+            nomiCorrenti = nuoviNomi;
+            localStorage.setItem('custom_nomi', JSON.stringify(nomiCorrenti));
+            renderTasti();
+            toggleEditor();
+            inviaDati();
+        }
+
+        function resetDati() {
+            if(confirm("Vuoi resettare tutti i dati registrati? I nomi dei tasti non verranno toccati.")) {
+                colonneData = [[], [], [], [], []];
+                lastUpdate = Date.now();
+                syncAndRefresh();
+                inviaDati();
+            }
+        }
+
+        function salvaTutto() {
+            let txt = `REPORT CONSOLE - ${new Date().toLocaleString()}\n` + "=".repeat(30) + "\n";
+            colonneData.forEach((d, i) => {
+                txt += `\nCAMBIO ${i+1}:\n` + (d.length > 0 ? d.map((n, idx) => ` ${idx+1}. ${n}`).join("\n") : " (Vuoto)") + "\n";
+            });
+            const blob = new Blob([txt], {type: 'text/plain'});
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `report_sync_${Date.now()}.txt`;
+            a.click();
+        }
+
+        // --- PEERJS LOGIC ---
+        const peer = new Peer();
+        let connections = [];
+
+        peer.on('open', id => {
+            const d = document.getElementById('my-id');
+            d.innerText = id;
+            d.onclick = () => {
+                navigator.clipboard.writeText(id);
+                const old = d.innerText;
+                d.innerText = "COPIATO!";
+                setTimeout(() => d.innerText = old, 800);
+            };
+        });
+
+        peer.on('connection', conn => setupConn(conn));
+
+        function connettiAPeer() {
+            const rId = document.getElementById('remote-id').value.trim();
+            if(rId) setupConn(peer.connect(rId));
+        }
+
+        function setupConn(conn) {
+            conn.on('open', () => {
+                if(!connections.find(c => c.peer === conn.peer)) connections.push(conn);
+                updateStatus(true, connections.length + " Peer Attivi");
+                conn.send({ data: colonneData, noms: nomiCorrenti, ts: lastUpdate });
+            });
+            conn.on('data', p => {
+                if(p.ts > lastUpdate) {
+                    colonneData = p.data;
+                    if(p.noms) {
+                        nomiCorrenti = p.noms;
+                        localStorage.setItem('custom_nomi', JSON.stringify(nomiCorrenti));
+                        renderTasti();
+                    }
+                    lastUpdate = p.ts;
+                    syncAndRefresh();
+                }
+            });
+            conn.on('close', () => {
+                connections = connections.filter(c => c.peer !== conn.peer);
+                updateStatus(connections.length > 0, connections.length + " Peer Attivi");
+            });
+        }
+
+        function inviaDati() {
+            connections.forEach(c => {
+                if(c.open) c.send({ data: colonneData, noms: nomiCorrenti, ts: lastUpdate });
+            });
+        }
+
+        function updateStatus(on, txt) {
+            document.getElementById('status-dot').className = 'status-dot' + (on ? ' status-online' : '');
+            document.getElementById('peer-status-text').innerText = on ? txt : "Disconnesso";
+        }
+
+        renderTasti();
+    </script>
+</body>
+</html>
