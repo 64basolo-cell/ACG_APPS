@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizzatore Statico - 5 Colonne Sync</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #e74c3c;
+            --bg-light: #f4f7f6;
+            --panel-bg: #ffffff;
+        }
+
+        body {
+            font-family: "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--bg-light);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 10px 20px;
+            background: var(--primary);
+            color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .status-box {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+        }
+
+        #dashboard {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr); /* 5 colonne uguali */
+            gap: 15px;
+            flex-grow: 1;
+            overflow: hidden;
+        }
+
+        .colonna {
+            background: var(--panel-bg);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            border: 2px solid #dcdde1;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .colonna-header {
+            background: #dcdde1;
+            padding: 12px;
+            text-align: center;
+            font-weight: 800;
+            color: var(--primary);
+            text-transform: uppercase;
+            border-bottom: 2px solid #bdc3c7;
+        }
+
+        .log-container {
+            padding: 10px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            height: 100%;
+        }
+
+        .item-log {
+            background: #fff;
+            padding: 12px;
+            border-radius: 6px;
+            font-weight: 700;
+            color: var(--primary);
+            border-left: 5px solid var(--accent);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .id-badge {
+            background: #fff;
+            color: var(--primary);
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .status-dot { height: 10px; width: 10px; background-color: #7f8c8d; border-radius: 50%; }
+        .status-online { background-color: #2ecc71; box-shadow: 0 0 8px #2ecc71; }
+        
+        #connection-panel {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            border: 1px solid var(--primary);
+            display: flex;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h2 style="margin:0">DASHBOARD SINCRONIZZATA</h2>
+        <div class="status-box">
+            <span>ID Visualizzatore: <span id="my-id" class="id-badge">...</span></span>
+            <span id="status-dot" class="status-dot"></span>
+            <span id="peer-status-text">In attesa...</span>
+        </div>
+    </header>
+
+    <div id="dashboard">
+        <div class="colonna" id="col-0"><div class="colonna-header">CAMBIO 1</div><div class="log-container"></div></div>
+        <div class="colonna" id="col-1"><div class="colonna-header">CAMBIO 2</div><div class="log-container"></div></div>
+        <div class="colonna" id="col-2"><div class="colonna-header">CAMBIO 3</div><div class="log-container"></div></div>
+        <div class="colonna" id="col-3"><div class="colonna-header">CAMBIO 4</div><div class="log-container"></div></div>
+        <div class="colonna" id="col-4"><div class="colonna-header">CAMBIO 5</div><div class="log-container"></div></div>
+    </div>
+
+    <div id="connection-panel">
+        <input type="text" id="remote-id" placeholder="Incolla ID Console" style="padding:8px; border: 1px solid #ccc; border-radius:4px;">
+        <button onclick="connettiAPeer()" style="padding:8px 15px; background:var(--accent); color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">CONNETTI A CONSOLE</button>
+    </div>
+
+    <script>
+        let lastUpdate = 0;
+        let peer = new Peer();
+        let connections = [];
+
+        // Inizializzazione Peer
+        peer.on('open', id => {
+            const el = document.getElementById('my-id');
+            el.innerText = id;
+            el.onclick = () => {
+                navigator.clipboard.writeText(id);
+                alert("ID Copiato! Incollalo nella console principale se necessario.");
+            };
+        });
+
+        peer.on('connection', conn => setupConn(conn));
+
+        function connettiAPeer() {
+            const rId = document.getElementById('remote-id').value.trim();
+            if(rId) setupConn(peer.connect(rId));
+        }
+
+        function setupConn(conn) {
+            conn.on('open', () => {
+                if(!connections.find(c => c.peer === conn.peer)) connections.push(conn);
+                updateStatus(true, "Sincronizzato");
+                document.getElementById('connection-panel').style.display = 'none'; // Nascondi dopo connessione
+            });
+
+            conn.on('data', payload => {
+                // Sincronizza solo se il timestamp è più recente
+                if(payload && payload.ts > lastUpdate) {
+                    renderDashboard(payload.data);
+                    lastUpdate = payload.ts;
+                }
+            });
+
+            conn.on('close', () => {
+                connections = connections.filter(c => c.peer !== conn.peer);
+                if(connections.length === 0) {
+                    updateStatus(false, "Disconnesso");
+                    document.getElementById('connection-panel').style.display = 'flex';
+                }
+            });
+        }
+
+        function renderDashboard(dataArray) {
+            dataArray.forEach((colonnaDati, index) => {
+                const container = document.querySelector(`#col-${index} .log-container`);
+                if(!container) return;
+
+                container.innerHTML = '';
+                colonnaDati.forEach((nome, i) => {
+                    const div = document.createElement('div');
+                    div.className = 'item-log';
+                    div.innerHTML = `<span>${nome}</span><small style="opacity:0.4">#${i+1}</small>`;
+                    container.appendChild(div);
+                });
+                // Auto-scroll in fondo
+                container.scrollTop = container.scrollHeight;
+            });
+        }
+
+        function updateStatus(on, txt) {
+            document.getElementById('status-dot').className = 'status-dot' + (on ? ' status-online' : '');
+            document.getElementById('peer-status-text').innerText = txt;
+        }
+    </script>
+</body>
+</html>
