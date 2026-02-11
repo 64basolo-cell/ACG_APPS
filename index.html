@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Console Sync - Clean Input</title>
+    <title>Console Sync Pro - P2P</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -12,6 +12,7 @@
             --success: #27ae60;
             --warning: #f39c12;
             --bg-light: #f0f2f5;
+            --text-main: #2c3e50;
         }
 
         body {
@@ -21,17 +22,18 @@
             height: 100vh;
             background-color: var(--bg-light);
             overflow: hidden;
+            color: var(--text-main);
         }
 
         /* --- COLONNA INPUT (FISSA 2x10) --- */
         #colonna-input {
             width: 40%;
             height: 100vh;
-            padding: 8px;
+            padding: 10px;
             display: grid;
             grid-template-columns: 1fr 1fr;
             grid-template-rows: repeat(10, 1fr);
-            gap: 6px;
+            gap: 8px;
             background-color: #ffffff;
             border-right: 3px solid var(--primary);
             box-sizing: border-box;
@@ -45,19 +47,19 @@
             cursor: pointer;
             border-radius: 6px;
             text-transform: uppercase;
-            transition: all 0.1s;
+            transition: all 0.1s ease;
             display: flex;
             align-items: center;
             justify-content: center;
             text-align: center;
-            padding: 4px;
+            padding: 5px;
             line-height: 1.1;
-            word-wrap: break-word;
-            overflow: hidden;
             font-size: clamp(0.6rem, 1.2vw, 0.85rem);
         }
 
-        .btn-sigla:active { transform: scale(0.96); }
+        .btn-sigla:hover { background: #f8f9fa; border-color: var(--primary); }
+        .btn-sigla:active { transform: scale(0.95); }
+        
         .btn-sigla.attivo-nella-colonna { 
             background-color: var(--warning); 
             color: white; 
@@ -81,17 +83,20 @@
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 5px;
+            gap: 6px;
+            padding-right: 5px;
         }
 
         .item-log {
             background: white;
-            padding: 10px;
-            border-radius: 4px;
+            padding: 12px;
+            border-radius: 6px;
             font-weight: 700;
             border-left: 5px solid var(--accent);
             display: flex;
             justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             font-size: 0.9rem;
         }
 
@@ -109,24 +114,30 @@
 
         .panel {
             background: rgba(255,255,255,0.1);
-            padding: 10px;
+            padding: 12px;
             border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.1);
         }
 
         .id-display { 
-            background: #fff; color: #333; padding: 8px; 
+            background: #fff; color: #333; padding: 10px; 
             font-family: monospace; text-align: center; border-radius: 4px; 
-            cursor: pointer; margin-top: 5px; font-weight: bold; font-size: 0.8rem;
+            cursor: pointer; margin-top: 5px; font-weight: bold; font-size: 0.85rem;
+            transition: background 0.2s;
         }
+        .id-display:hover { background: #eee; }
 
         .btn-select {
-            padding: 10px; border: none; background: #34495e; color: #bdc3c7; 
-            cursor: pointer; font-weight: 700; border-radius: 4px; transition: 0.2s;
+            padding: 12px; border: none; background: #34495e; color: #bdc3c7; 
+            cursor: pointer; font-weight: 700; border-radius: 6px; transition: 0.2s;
+            text-align: left;
         }
         .btn-select.active { background-color: var(--accent); color: white; }
 
         .status-dot { height: 10px; width: 10px; background-color: #7f8c8d; border-radius: 50%; display: inline-block; margin-right: 5px;}
-        .status-online { background-color: #2ecc71; box-shadow: 0 0 5px #2ecc71; }
+        .status-online { background-color: #2ecc71; box-shadow: 0 0 8px #2ecc71; }
+        
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
     </style>
 </head>
 <body>
@@ -134,39 +145,119 @@
     <div id="colonna-input"></div>
 
     <div id="colonna-view">
-        <h3 id="titolo-colonna" style="text-align: center; margin-top: 0; color: var(--primary);">CAMBIO 1</h3>
+        <h3 id="titolo-colonna" style="text-align: center; margin-top: 0; color: var(--primary); text-transform: uppercase;">CAMBIO 1</h3>
         <div id="display-log"></div>
     </div>
 
     <div id="colonna-controlli">
         <div class="panel">
-            <div id="my-id" class="id-display" title="Clicca per copiare">Inizializzazione...</div>
-            <input type="text" id="remote-id" style="width:100%; padding:8px; margin-top:8px; box-sizing:border-box; border-radius:4px; border:none;" placeholder="Incolla ID partner">
-            <button onclick="connettiAPeer()" style="width:100%; margin-top:6px; padding:8px; background:#3498db; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">🔗 CONNETTI</button>
-            <div style="text-align:center; margin-top:8px; font-size:0.75rem;">
+            <label style="font-size: 0.75rem; opacity: 0.8;">IL TUO ID (Clicca per copiare):</label>
+            <div id="my-id" class="id-display">Inizializzazione...</div>
+            
+            <input type="text" id="remote-id" style="width:100%; padding:10px; margin-top:12px; box-sizing:border-box; border-radius:4px; border:none;" placeholder="Incolla ID partner">
+            <button onclick="connettiAPeer()" style="width:100%; margin-top:8px; padding:10px; background:#3498db; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">🔗 CONNETTI</button>
+            
+            <div style="text-align:center; margin-top:10px; font-size:0.8rem;">
                 <span id="status-dot" class="status-dot"></span> <span id="peer-status-text">Disconnesso</span>
             </div>
         </div>
 
-        <button class="btn-select active" onclick="switchColonna(0)">CAMBIO 1</button>
-        <button class="btn-select" onclick="switchColonna(1)">CAMBIO 2</button>
-        <button class="btn-select" onclick="switchColonna(2)">CAMBIO 3</button>
-        <button class="btn-select" onclick="switchColonna(3)">CAMBIO 4</button>
-        <button class="btn-select" onclick="switchColonna(4)">CAMBIO 5</button>
+        <div style="display: flex; flex-direction: column; gap: 5px;">
+            <button class="btn-select active" onclick="switchColonna(0)">CAMBIO 1</button>
+            <button class="btn-select" onclick="switchColonna(1)">CAMBIO 2</button>
+            <button class="btn-select" onclick="switchColonna(2)">CAMBIO 3</button>
+            <button class="btn-select" onclick="switchColonna(3)">CAMBIO 4</button>
+            <button class="btn-select" onclick="switchColonna(4)">CAMBIO 5</button>
+        </div>
 
-        <button onclick="salvaTutto()" style="margin-top:auto; padding:12px; background:var(--success); color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">💾 SCARICA REPORT</button>
-        <button onclick="resetDati()" style="padding:10px; background:#c0392b; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">🗑️ RESET DATI</button>
+        <div style="margin-top: auto; display: flex; flex-direction: column; gap: 8px;">
+            <button onclick="salvaTutto()" style="padding:12px; background:var(--success); color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">💾 SCARICA REPORT</button>
+            <button onclick="resetDati()" style="padding:10px; background:#c0392b; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">🗑️ RESET DATI</button>
+        </div>
     </div>
 
     <script>
-        const nomi = ["BAIRO","BARBANIA", "BUSANO", "CANISCHIO", "CUCEGLIO", "CUORGNE'", "FAVRIA", "FORNO", "FRASSINETTO", "LEVONE", "OZEGNA", "PERTUSIO", "PRASCORSANO", "PRATIGLIONE","RIVARA", "RIVAROLO","OGLIANICO" ,"SPARONE", "TORRRE", "VALPERGA"];
+        const nomi = ["BAIRO","BARBANIA", "BUSANO", "CANISCHIO", "CUCEGLIO", "CUORGNE'", "FAVRIA", "FORNO", "FRASSINETTO", "LEVONE", "OZEGNA", "PERTUSIO", "PRASCORSANO", "PRATIGLIONE","RIVARA", "RIVAROLO","OGLIANICO" ,"SPARONE", "TORRE", "VALPERGA"];
         
-        let savedStore = localStorage.getItem('shared_log_data');
+        // --- STATO APPLICAZIONE ---
+        let savedStore = localStorage.getItem('shared_log_data_v2');
         let appState = savedStore ? JSON.parse(savedStore) : { data: [[], [], [], [], []], lastUpdate: Date.now() };
+        
         let colonneData = appState.data;
         let lastUpdate = appState.lastUpdate;
         let colonnaAttiva = 0;
 
+        // --- GESTIONE P2P ---
+        const peer = new Peer();
+        let activeConnections = new Map();
+
+        peer.on('open', id => {
+            const d = document.getElementById('my-id');
+            d.innerText = id;
+            d.onclick = () => {
+                navigator.clipboard.writeText(id);
+                const old = d.innerText;
+                d.innerText = "COPIATO!";
+                setTimeout(() => d.innerText = old, 800);
+            };
+        });
+
+        peer.on('connection', conn => setupConn(conn));
+
+        function connettiAPeer() {
+            const rId = document.getElementById('remote-id').value.trim();
+            if(rId && !activeConnections.has(rId)) {
+                setupConn(peer.connect(rId));
+            }
+        }
+
+        function setupConn(conn) {
+            conn.on('open', () => {
+                activeConnections.set(conn.peer, conn);
+                updateUIStatus();
+                // Sincronizzazione iniziale
+                conn.send({ data: colonneData, ts: lastUpdate });
+            });
+
+            conn.on('data', payload => {
+                // Sincronizzazione intelligente: vince il timestamp più recente
+                if(payload.ts > lastUpdate) {
+                    colonneData = payload.data;
+                    lastUpdate = payload.ts;
+                    syncAndRefresh();
+                } else if (payload.ts < lastUpdate) {
+                    // Se io sono più aggiornato, istruisco il peer
+                    conn.send({ data: colonneData, ts: lastUpdate });
+                }
+            });
+
+            conn.on('close', () => {
+                activeConnections.delete(conn.peer);
+                updateUIStatus();
+            });
+
+            conn.on('error', () => {
+                activeConnections.delete(conn.peer);
+                updateUIStatus();
+            });
+        }
+
+        function inviaDati() {
+            const payload = { data: colonneData, ts: lastUpdate };
+            activeConnections.forEach(conn => {
+                if(conn.open) conn.send(payload);
+            });
+        }
+
+        function updateUIStatus() {
+            const count = activeConnections.size;
+            const dot = document.getElementById('status-dot');
+            const text = document.getElementById('peer-status-text');
+            dot.className = 'status-dot' + (count > 0 ? ' status-online' : '');
+            text.innerText = count > 0 ? `${count} Peer Attivi` : "Disconnesso";
+        }
+
+        // --- LOGICA INTERFACCIA ---
         function renderTasti() {
             const container = document.getElementById('colonna-input');
             container.innerHTML = '';
@@ -184,6 +275,7 @@
         function toggleTasto(nome, index) {
             let colData = colonneData[colonnaAttiva];
             const pos = colData.indexOf(nome);
+            
             if (pos > -1) colData.splice(pos, 1);
             else colData.push(nome);
             
@@ -193,21 +285,25 @@
         }
 
         function syncAndRefresh() {
+            // Aggiorna pulsanti input
             nomi.forEach((n, i) => {
                 const b = document.getElementById(`btn-tasto-${i}`);
                 if(b) b.classList.toggle('attivo-nella-colonna', (colonneData[colonnaAttiva] || []).includes(n));
             });
 
+            // Aggiorna lista view
             const log = document.getElementById('display-log');
             log.innerHTML = '';
             (colonneData[colonnaAttiva] || []).forEach((n, i) => {
                 const div = document.createElement('div');
                 div.className = 'item-log';
-                div.innerHTML = `<span>${n}</span><small style="color:#bdc3c7">#${i+1}</small>`;
+                div.innerHTML = `<span>${n}</span><small style="color:#bdc3c7; font-family: monospace;">#${i+1}</small>`;
                 log.appendChild(div);
             });
             log.scrollTop = log.scrollHeight;
-            localStorage.setItem('shared_log_data', JSON.stringify({ data: colonneData, lastUpdate: lastUpdate }));
+
+            // Salvataggio locale
+            localStorage.setItem('shared_log_data_v2', JSON.stringify({ data: colonneData, lastUpdate: lastUpdate }));
         }
 
         function switchColonna(idx) {
@@ -218,7 +314,7 @@
         }
 
         function resetDati() {
-            if(confirm("Vuoi resettare tutti i dati registrati?")) {
+            if(confirm("Sei sicuro? Questo cancellerà tutti i dati su tutti i dispositivi connessi.")) {
                 colonneData = [[], [], [], [], []];
                 lastUpdate = Date.now();
                 syncAndRefresh();
@@ -227,68 +323,18 @@
         }
 
         function salvaTutto() {
-            let txt = `REPORT CONSOLE - ${new Date().toLocaleString()}\n` + "=".repeat(30) + "\n";
+            let txt = `REPORT CONSOLE - ${new Date().toLocaleString()}\n` + "=".repeat(40) + "\n";
             colonneData.forEach((d, i) => {
-                txt += `\nCAMBIO ${i+1}:\n` + (d.length > 0 ? d.map((n, idx) => ` ${idx+1}. ${n}`).join("\n") : " (Vuoto)") + "\n";
+                txt += `\n[ CAMBIO ${i+1} ]\n` + (d.length > 0 ? d.map((n, idx) => `  ${idx+1}. ${n}`).join("\n") : "  (Vuoto)") + "\n";
             });
             const blob = new Blob([txt], {type: 'text/plain'});
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            a.download = `report_sync_${Date.now()}.txt`;
+            a.download = `report_console_${new Date().toISOString().slice(0,10)}.txt`;
             a.click();
         }
 
-        const peer = new Peer();
-        let connections = [];
-
-        peer.on('open', id => {
-            const d = document.getElementById('my-id');
-            d.innerText = id;
-            d.onclick = () => {
-                navigator.clipboard.writeText(id);
-                const old = d.innerText;
-                d.innerText = "COPIATO!";
-                setTimeout(() => d.innerText = old, 800);
-            };
-        });
-
-        peer.on('connection', conn => setupConn(conn));
-
-        function connettiAPeer() {
-            const rId = document.getElementById('remote-id').value.trim();
-            if(rId) setupConn(peer.connect(rId));
-        }
-
-        function setupConn(conn) {
-            conn.on('open', () => {
-                if(!connections.find(c => c.peer === conn.peer)) connections.push(conn);
-                updateStatus(true, connections.length + " Peer Attivi");
-                conn.send({ data: colonneData, ts: lastUpdate });
-            });
-            conn.on('data', p => {
-                if(p.ts > lastUpdate) {
-                    colonneData = p.data;
-                    lastUpdate = p.ts;
-                    syncAndRefresh();
-                }
-            });
-            conn.on('close', () => {
-                connections = connections.filter(c => c.peer !== conn.peer);
-                updateStatus(connections.length > 0, connections.length + " Peer Attivi");
-            });
-        }
-
-        function inviaDati() {
-            connections.forEach(c => {
-                if(c.open) c.send({ data: colonneData, ts: lastUpdate });
-            });
-        }
-
-        function updateStatus(on, txt) {
-            document.getElementById('status-dot').className = 'status-dot' + (on ? ' status-online' : '');
-            document.getElementById('peer-status-text').innerText = on ? txt : "Disconnesso";
-        }
-
+        // Avvio
         renderTasti();
     </script>
 </body>
